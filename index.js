@@ -25,6 +25,17 @@ function processCommand(command) {
                 }
             }
             break;
+        case 'important':
+            for (const file of files){
+                let startPos = -1;
+                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
+                    const v = file.indexOf('!', startPos + 1);
+                    const endPos = file.indexOf('\n',startPos + 1);
+                    if (v !== -1 && v < endPos) {
+                        console.log(file.slice(startPos, endPos));
+                    }
+                }
+            }
         default:
             console.log('wrong command');
             break;
