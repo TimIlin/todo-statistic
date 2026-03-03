@@ -16,6 +16,15 @@ function processCommand(command) {
         case 'exit':
             process.exit(0);
             break;
+        case 'show':
+            for (const file of files){
+                let startPos = -1;
+                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
+                    const endPos = file.indexOf('\n',startPos + 1);
+                    console.log(file.slice(startPos,endPos));
+                }
+            }
+            break;
         default:
             console.log('wrong command');
             break;
