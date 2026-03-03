@@ -57,6 +57,72 @@ function processCommand(command) {
                 }
             }
             break;
+        case 'sort':
+            if(args.length!=1) break;
+            const variant = args[0];
+            const todos = [];
+            for (const file of files){
+                let startPos = -1;
+                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
+                    const ob = {};
+                    todos.push(ob);
+                    const endPos = file.indexOf('\n',startPos + 1);
+                    const str = file.slice(startPos + 8, endPos);
+                    const splittedCom = str.split(";");
+                    if (splittedCom.length === 3) {
+                        const userName = splittedCom[0].trim();
+                        const dateString = splittedCom[1].trim();
+
+                        ob.user = userName;
+
+                        const parsedDate = new Date(dateString);
+
+                        if (!isNaN(parsedDate.getTime())) {
+                            ob.date = parsedDate;
+                        }
+                    }
+                    const importance = str.split('!').length - 1;
+                    ob.importance = importance;
+                    ob.text = file.slice(startPos, endPos);
+                }
+            }
+            let sorted = [];
+
+            switch(variant) {
+                case 'importance':
+                    sorted = todos.sort((a, b) => {
+                            if (a.importance !== b.importance) {
+                                return b.importance - a.importance;
+                            }
+                            return 0;
+                        }
+                    );
+                    break;
+                case 'user':
+                    sorted = todos.sort((a, b) => {
+                        if (a.user && !b.user) return -1;
+                        if (!a.user && b.user) return 1;
+                        if (a.user && b.user) {
+                            return a.user.localeCompare(b.user);
+                        }
+                        return 0;
+                    });
+                    break;
+                case 'date':
+                    sorted = todos.sort((a, b) => {
+                        if (a.date && b.date) {
+                            return b.date - a.date;
+                        }
+                        if (a.date && !b.date) return -1;
+                        if (!a.date && b.date) return 1;
+                        return 0;
+                    });
+                    break;
+                }
+            for (let element of sorted) {
+                console.log(`${element.text}${element.importance}`);
+            }
+            break;
         default:
             console.log('wrong command');
             break;
