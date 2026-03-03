@@ -12,7 +12,10 @@ function getFiles() {
 }
 
 function processCommand(command) {
-    switch (command) {
+    const splitted = command.split(" ");
+    const com = splitted[0];
+    const args = splitted.slice(1);
+    switch (com) {
         case 'exit':
             process.exit(0);
             break;
@@ -36,6 +39,24 @@ function processCommand(command) {
                     }
                 }
             }
+            break;
+        case "user":
+            if(args.length!=1) break;
+            const userToFind = args[0];
+            for (const file of files){
+                let startPos = -1;
+                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
+                    const endPos = file.indexOf('\n',startPos + 1);
+                    const str = file.slice(startPos + 8, endPos);
+                    const splittedCom = str.split(";");
+                    if(splittedCom.length != 3) break;
+                    const userName = splittedCom[0].trim();
+                    if(userName == userToFind){
+                        console.log(file.slice(startPos, endPos));
+                    }
+                }
+            }
+            break;
         default:
             console.log('wrong command');
             break;
