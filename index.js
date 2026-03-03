@@ -11,6 +11,96 @@ function getFiles() {
     return filePaths.map(path => readFile(path));
 }
 
+function getTodos(files){
+    const todos = [];
+    for (const file of files){
+        let startPos = -1;
+        while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
+            const ob = {};
+            todos.push(ob);
+            const endPos = file.indexOf('\n',startPos + 1);
+            const str = file.slice(startPos + 8, endPos);
+            ob.text = str;
+
+            const splittedCom = str.split(";");
+            if (splittedCom.length === 3) {
+                const userName = splittedCom[0].trim();
+                const dateString = splittedCom[1].trim();
+
+                ob.user = userName;
+
+                const parsedDate = new Date(dateString);
+
+                if (!isNaN(parsedDate.getTime())) {
+                    ob.date = parsedDate;
+                }
+                ob.text = splittedCom[2];
+            }
+            const importance = str.split('!').length - 1;
+            ob.importance = importance;
+            
+        }
+    }
+    return todos
+}
+
+function parseCoolDate(dateString){
+    if (!dateString) return null;
+
+    const parts = dateString.trim().split('-');
+
+    const year = Number(parts[0]);
+    const month = parts.length > 1 ? Number(parts[1]) - 1 : 0;
+    const day = parts.length > 2 ? Number(parts[2]) : 1;
+
+    if (
+        isNaN(year) ||
+        (parts.length > 1 && isNaN(month)) ||
+        (parts.length > 2 && isNaN(day))
+    ) {
+        return null;
+    }
+
+    const date = new Date(year, month, day);
+
+    return isNaN(date.getTime()) ? null : date;
+}
+
+function formatTodo(todo) {
+    const widths = {
+        importance: 1,
+        user: 10,
+        date: 10,
+        text: 50
+    };
+
+    function formatValue(value, maxWidth) {
+        if (value === undefined || value === null) value = '';
+        value = String(value);
+        
+        if (value.length > maxWidth) {
+            return value.slice(0, maxWidth - 3) + '...';
+        }
+        return value.padEnd(maxWidth, ' ');
+    }
+    
+    function formatDate(date) {
+        if (!date) return '';
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    const importance = todo.importance > 0 ? '!' : '';
+    const user = todo.user || '';
+    const date = todo.date ? formatDate(todo.date) : '';
+    const text = todo.text || '';
+
+    return `${formatValue(importance, widths.importance)}  |  ${formatValue(user, widths.user)}  |  ${formatValue(date, widths.date)}  |  ${formatValue(text, widths.text)}`;
+}
+
+
 function processCommand(command) {
     const splitted = command.split(" ");
     const com = splitted[0];
@@ -20,73 +110,32 @@ function processCommand(command) {
             process.exit(0);
             break;
         case 'show':
-            for (const file of files){
-                let startPos = -1;
-                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
-                    const endPos = file.indexOf('\n',startPos + 1);
-                    console.log(file.slice(startPos,endPos));
-                }
+            for(const todo of getTodos(files)){
+                console.log(formatTodo(todo));
             }
             break;
         case 'important':
-            for (const file of files){
-                let startPos = -1;
-                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
-                    const v = file.indexOf('!', startPos + 1);
-                    const endPos = file.indexOf('\n',startPos + 1);
-                    if (v !== -1 && v < endPos) {
-                        console.log(file.slice(startPos, endPos));
-                    }
+            for(const todo of getTodos(files)){
+                if(todo.importance >0){
+                    console.log(formatTodo(todo));
                 }
             }
             break;
         case "user":
             if(args.length!=1) break;
             const userToFind = args[0];
-            for (const file of files){
-                let startPos = -1;
-                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
-                    const endPos = file.indexOf('\n',startPos + 1);
-                    const str = file.slice(startPos + 8, endPos);
-                    const splittedCom = str.split(";");
-                    if(splittedCom.length != 3) break;
-                    const userName = splittedCom[0].trim();
-                    if(userName == userToFind){
-                        console.log(file.slice(startPos, endPos));
-                    }
+            for(const todo of getTodos(files)){
+                if(todo.user === userToFind){
+                    console.log(formatTodo(todo));
                 }
             }
             break;
         case 'sort':
             if(args.length!=1) break;
             const variant = args[0];
-            const todos = [];
-            for (const file of files){
-                let startPos = -1;
-                while ((startPos = file.indexOf('// TODO ', startPos + 1)) != -1) {
-                    const ob = {};
-                    todos.push(ob);
-                    const endPos = file.indexOf('\n',startPos + 1);
-                    const str = file.slice(startPos + 8, endPos);
-                    const splittedCom = str.split(";");
-                    if (splittedCom.length === 3) {
-                        const userName = splittedCom[0].trim();
-                        const dateString = splittedCom[1].trim();
-
-                        ob.user = userName;
-
-                        const parsedDate = new Date(dateString);
-
-                        if (!isNaN(parsedDate.getTime())) {
-                            ob.date = parsedDate;
-                        }
-                    }
-                    const importance = str.split('!').length - 1;
-                    ob.importance = importance;
-                    ob.text = file.slice(startPos, endPos);
-                }
-            }
-            let sorted = [];
+            
+            const todos = getTodos(files);
+            const sorted = [];
 
             switch(variant) {
                 case 'importance':
@@ -119,8 +168,17 @@ function processCommand(command) {
                     });
                     break;
                 }
-            for (let element of sorted) {
-                console.log(`${element.text}${element.importance}`);
+            for (const todo of sorted) {
+                console.log(formatTodo(todo));
+            }
+            break;
+        case 'date':
+            if(args.length!=1) break;
+            const date = parseCoolDate(args[0]);
+            for(const todo of getTodos(files)){
+                if(todo.date && todo.date>date){
+                    console.log(formatTodo(todo));
+                }
             }
             break;
         default:
